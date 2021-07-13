@@ -45,6 +45,16 @@ class SimpleRender : BaseGLRender() {
 
     protected val GL_TEXTURE_EXTERNAL_OES = 0x8D65
 
+    protected val FLOAT_SIZE_BYTES = 4
+
+    protected val TRIANGLE_VERTICES_DATA_STRIDE_BYTES = 5 * FLOAT_SIZE_BYTES
+
+    protected val TRIANGLE_VERTICES_DATA_UV_OFFSET = 3
+
+    protected val TRIANGLE_VERTICES_DATA_POS_OFFSET = 0
+
+    protected var mChangeProgram = false
+
     private val mVertexShader = "uniform mat4 uMVPMatrix;\n" +
             "uniform mat4 uSTMatrix;\n" +
             "attribute vec4 aPosition;\n" +
@@ -131,6 +141,12 @@ class SimpleRender : BaseGLRender() {
         }
 
         initDrawFrame()
+
+        bindDrawFrameTexture()
+
+        initPointerAndDraw()
+
+        GLES20.glFinish()
     }
 
     override fun onFrameAvailable(surfaceTexture: SurfaceTexture?) {
@@ -138,7 +154,53 @@ class SimpleRender : BaseGLRender() {
     }
 
     protected fun initDrawFrame() {
-        
+        if (mChangeProgram) {
+            mProgram = createProgram(getVertexShader(),getFragmentShader())
+            mChangeProgram = false
+        }
+        GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
+        GLES20.glClear(GLES20.GL_DEPTH_BUFFER_BIT or GLES20.GL_COLOR_BUFFER_BIT)
+        GLES20.glUseProgram(mProgram)
+    }
+
+    protected fun bindDrawFrameTexture() {
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+        GLES20.glBindTexture(
+            GL_TEXTURE_EXTERNAL_OES,
+            mTextureID[0]
+        )
+    }
+
+    protected fun initPointerAndDraw() {
+        mTriangleVertices.position(TRIANGLE_VERTICES_DATA_POS_OFFSET)
+        GLES20.glVertexAttribPointer(
+            maPositionHandle,
+            3,
+            GLES20.GL_FLOAT,
+            false,
+            TRIANGLE_VERTICES_DATA_STRIDE_BYTES,
+            mTriangleVertices
+        )
+        GLES20.glEnableVertexAttribArray(maPositionHandle)
+
+        mTriangleVertices.position(TRIANGLE_VERTICES_DATA_UV_OFFSET)
+        GLES20.glVertexAttribPointer(
+            maTextureHandle,
+            3,
+            GLES20.GL_FLOAT,
+            false,
+            TRIANGLE_VERTICES_DATA_STRIDE_BYTES,
+            mTriangleVertices
+        )
+        GLES20.glEnableVertexAttribArray(maTextureHandle)
+
+        GLES20.glUniformMatrix4fv(
+            muMVPMatrixHandle, 1, false, mMVPMatrix,
+            0
+        )
+        GLES20.glUniformMatrix4fv(muSTMatrixHandle, 1, false, mSTMatrix, 0)
+
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
     }
 
     protected fun getVertexShader() = mVertexShader
@@ -153,5 +215,6 @@ class SimpleRender : BaseGLRender() {
 
     fun setEffect(effectFilter: MyGLSurfaceView.IShader) {
         mEffectFilter = effectFilter
+        mChangeProgram = true
     }
 }
